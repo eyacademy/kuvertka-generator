@@ -12,13 +12,16 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kuvertki")
 
+
 @app.head("/")
 def head_root():
     return Response(status_code=200)
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/", response_class=HTMLResponse)
 def form():
@@ -29,6 +32,7 @@ def form():
         <button type="submit" style="padding: 8px 12px; margin-left: 10px;">Создать PDF</button>
     </form>
     """
+
 
 @app.post("/generate")
 def generate(name: str = Form(...)):
@@ -50,11 +54,11 @@ def generate(name: str = Form(...)):
     slide_filenames = []
     for i, person in enumerate(names, 1):
         slide_name = f"slide{i}.xml"
-        new_xml = slide_xml.replace("{{ name }}", person)
+        new_xml = slide_xml
 
         # Подбор размера шрифта
-        base_size = 5600  # максимальный (56pt)
-        min_size = 3200   # минимальный (32pt)
+        base_size = 5600  # = 56pt
+        min_size = 3200   # = 32pt
         length = len(person)
         if length <= 10:
             font_size = base_size
@@ -65,23 +69,25 @@ def generate(name: str = Form(...)):
         else:
             font_size = min_size
 
-        # Жирное имя с авторазмером
-        new_xml = re.sub(
-            r'(<a:t>.*?)(' + re.escape(person) + r')(.*?</a:t>)',
-            rf'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1" sz="{font_size}"/></a:r>',
-            new_xml
+        # Заменяем {{ name }} на XML-блок с жирным текстом и нужным шрифтом
+        name_run = (
+            f'<a:r>'
+            f'<a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1" sz="{font_size}"/>'
+            f'<a:t>{person}</a:t>'
+            f'</a:r>'
         )
+        new_xml = new_xml.replace("{{ name }}", name_run)
 
         # Жирный текст под QR
         new_xml = re.sub(
             r'(<a:t>(eyacademycca\.com|EY Academy of Business CCA|ey\.academy\.cca|eyacademycca)</a:t>)',
-            r'<a:r><a:rPr lang="en-US" dirty="0" smtClean="0" b="1"/></a:r>', new_xml
+            r'<a:r><a:rPr lang="en-US" dirty="0" smtClean="0" b="1"/>\1</a:r>', new_xml
         )
 
         # Жирный "Следите за нашими новостями:"
         new_xml = re.sub(
             r'(<a:t>Следите за нашими новостями:</a:t>)',
-            r'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1"/></a:r>', new_xml
+            r'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1"/>\1</a:r>', new_xml
         )
 
         with open(f"{template_dir}/ppt/slides/{slide_name}", "w", encoding="utf-8") as f:
