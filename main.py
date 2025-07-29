@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Form
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 import os
 import uuid
 import subprocess
@@ -7,7 +7,6 @@ import logging
 import zipfile
 import shutil
 import re
-from fastapi.responses import Response
 
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
@@ -53,22 +52,36 @@ def generate(name: str = Form(...)):
         slide_name = f"slide{i}.xml"
         new_xml = slide_xml.replace("{{ name }}", person)
 
+        # Подбор размера шрифта
+        base_size = 5600  # максимальный (56pt)
+        min_size = 3200   # минимальный (32pt)
+        length = len(person)
+        if length <= 10:
+            font_size = base_size
+        elif length <= 15:
+            font_size = base_size - 800
+        elif length <= 20:
+            font_size = base_size - 1600
+        else:
+            font_size = min_size
+
+        # Жирное имя с авторазмером
+        new_xml = re.sub(
+            r'(<a:t>.*?)(' + re.escape(person) + r')(.*?</a:t>)',
+            rf'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1" sz="{font_size}"/></a:r>',
+            new_xml
+        )
+
         # Жирный текст под QR
         new_xml = re.sub(
             r'(<a:t>(eyacademycca\.com|EY Academy of Business CCA|ey\.academy\.cca|eyacademycca)</a:t>)',
-            r'<a:r><a:rPr lang="en-US" dirty="0" smtClean="0" b="1"/>\1</a:r>', new_xml
+            r'<a:r><a:rPr lang="en-US" dirty="0" smtClean="0" b="1"/></a:r>', new_xml
         )
 
         # Жирный "Следите за нашими новостями:"
         new_xml = re.sub(
             r'(<a:t>Следите за нашими новостями:</a:t>)',
-            r'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1"/>\1</a:r>', new_xml
-        )
-
-        # Жирное имя
-        new_xml = re.sub(
-            r'(<a:t>.*?)(' + re.escape(person) + r')(.*?</a:t>)',
-            r'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1"/>\1\2\3</a:r>', new_xml
+            r'<a:r><a:rPr lang="ru-RU" dirty="0" smtClean="0" b="1"/></a:r>', new_xml
         )
 
         with open(f"{template_dir}/ppt/slides/{slide_name}", "w", encoding="utf-8") as f:
