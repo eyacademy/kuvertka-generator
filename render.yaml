@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: kuvertka-generator
+    env: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000

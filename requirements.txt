@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+aspose.slides
+python-pptx
+python-multipart
+PyPDF2
+pillow
