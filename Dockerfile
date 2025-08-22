@@ -1,23 +1,31 @@
-FROM python:3.10-slim
+# jackets/Dockerfile
+FROM python:3.11-slim
 
-# Устанавливаем зависимости
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    fonts-dejavu \
-    curl unzip fontconfig \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Копируем кастомные шрифты (если есть)
-COPY fonts /usr/share/fonts/truetype/custom
-RUN fc-cache -f -v
+# Системные пакеты: LibreOffice + шрифты
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libreoffice \
+      fonts-dejavu-core fontconfig curl unzip \
+    && rm -rf /var/lib/apt/lists/*
 
-# Обновляем pip и устанавливаем зависимости
+WORKDIR /app
+
+# Ставим зависимости раньше, чтобы кэшировалось
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем приложение
+# Копируем код и ресурсы
 COPY . .
 
-EXPOSE 10000
+# Кастомные шрифты (если есть)
+# COPY fonts /usr/local/share/fonts/custom
+# RUN fc-cache -f -v
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Railway сам задаёт $PORT — НЕ хардкодим!
+EXPOSE 0
+
+# Если main.py в корне и FastAPI-приложение называется "app"
+# иначе подставь свою точку входа
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
